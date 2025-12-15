@@ -26,3 +26,5 @@ tests/integration/
 music_list.txt
 tracklist.csv
 todo.md
+
+package-lock.json
