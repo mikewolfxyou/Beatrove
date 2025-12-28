@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <meta name="description" content="DJ Total Kaos - EDM Bangers Tracklist - Find and filter electronic music tracks by BPM, key, and genre">
   <!-- Content Security Policy with inline support for audio player -->
-  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://cdnjs.cloudflare.com; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; media-src 'self' blob:; font-src 'self'; connect-src 'self';">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://cdnjs.cloudflare.com; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: http://localhost:9000; media-src 'self' blob:; font-src 'self'; connect-src 'self' http://localhost:9000;">
   <title>DJ Total Kaos - EDM Bangers</title>
   <link rel="stylesheet" href="assets/style.css" />
   <link rel="stylesheet" href="themes/color-drip.css" />
@@ -351,6 +351,41 @@
           </div>
           <div id="label-stats" class="stat-list"></div>
         </div>
+      </div>
+    </div>
+    <!-- Vinyl Upload Section -->
+    <div class="search-section-card" id="vinyl-upload-card" hidden>
+      <div class="filter-card-header">
+        <span class="filter-card-icon">💿</span>
+        <h3 class="filter-card-title">Vinyl Intake</h3>
+      </div>
+      <div class="vinyl-upload-content">
+        <p class="vinyl-upload-description">
+          Upload a sleeve photo and optional metadata; the local OCR server will populate the record catalog automatically.
+        </p>
+        <form id="vinyl-upload-form" class="vinyl-upload-form">
+          <label class="vinyl-upload-file">
+            <span>Cover Images * (front, back, inserts)</span>
+            <input type="file" id="vinyl-cover-input" name="covers" accept="image/*" required multiple>
+          </label>
+          <div class="vinyl-upload-grid">
+            <input type="text" id="vinyl-artist-input" name="artist" placeholder="Artist">
+            <input type="text" id="vinyl-composer-input" name="composer" placeholder="Composer">
+            <input type="text" id="vinyl-record-name-input" name="record_name" placeholder="Record / Release Name">
+            <input type="text" id="vinyl-catalog-input" name="catalog_number" placeholder="Catalog #">
+            <input type="text" id="vinyl-label-input" name="label" placeholder="Label">
+            <input type="text" id="vinyl-year-input" name="year" placeholder="Year">
+            <input type="text" id="vinyl-location-input" name="location" placeholder="Crate / Location">
+          </div>
+          <textarea id="vinyl-notes-input" name="notes" rows="3" placeholder="Notes (pressing details, condition, etc.)"></textarea>
+          <div class="vinyl-upload-actions">
+            <button type="submit" id="vinyl-upload-submit" class="vinyl-upload-btn">Upload Vinyl Record</button>
+            <span id="vinyl-upload-status" class="vinyl-upload-status" aria-live="polite"></span>
+          </div>
+          <p class="vinyl-upload-hint">
+            Requires the local vinyl API (`server/app.py`) to be running with `VINYL_MODE.ENABLED`.
+          </p>
+        </form>
       </div>
     </div>
   </div>

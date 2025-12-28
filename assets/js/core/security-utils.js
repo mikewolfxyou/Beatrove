@@ -31,6 +31,11 @@ export const CONFIG = {
     MAX_SIZE: '150px', // Maximum cover art display size
     FALLBACK_ENABLED: true, // Show placeholder when cover art not found
     CACHE_ENABLED: true // Cache loaded cover art images
+  },
+  VINYL_MODE: {
+    ENABLED: true,
+    API_BASE_URL: 'http://localhost:9000/api/v1',
+    IMAGE_BASE_URL: 'http://localhost:9000'
   }
 };
 

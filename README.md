@@ -192,6 +192,49 @@ Try Beatrove live: **[https://totalkaos.net/beatrove/](https://totalkaos.net/bea
 Artbat - Horizon - 8A - 124.wav - 7:23 - 2022 - /path/to/file.wav - Techno - Energy 7 - Diynamic
 ```
 
+## 🛠️ Local Development Workflow
+
+### Backend (Vinyl OCR API)
+1. **Environment setup**
+   ```bash
+   cd server
+   python3 -m venv venv
+   source venv/bin/activate
+   pip install -r requirements.txt
+   export VINYL_OCR_HTTP_URL="http://127.0.0.1:8089"
+   export VINYL_OCR_PROMPT='You are an expert archivist for vinyl records. Respond ONLY with JSON like {"artist":"","composer":"","record_name":"","catalog_number":"","label":"","year":"","location":"","notes":""}. Fill empty strings when unknown.'
+   export VINYL_OCR_MODEL="nanonets/Nanonets-OCR2-3B"
+   export VINYL_OCR_TEMPERATURE="0.0"
+   export VINYL_OCR_MAX_TOKENS="15000"
+   # Optional CLI fallback
+   # export VINYL_OCR_COMMAND="python /path/to/ocr.py --image {image}"
+   cd ..
+   ```
+2. **Start the API**
+   ```bash
+   uvicorn server.app:app --reload --port 9000
+   ```
+   This launches the FastAPI service, writes data to `server/vinyl.db`, and serves uploaded cover images from `server/uploads/`. Endpoints live under `http://localhost:9000/api/v1`.
+
+### Frontend (Beatrove Web UI)
+1. **Install deps and serve**
+   ```bash
+   npm install
+   npm run serve
+   # browse http://localhost:8000
+   ```
+2. **Enable vinyl mode** in `assets/js/core/security-utils.js`:
+   ```js
+   VINYL_MODE: {
+     ENABLED: true,
+     API_BASE_URL: 'http://localhost:9000/api/v1',
+     IMAGE_BASE_URL: 'http://localhost:9000'
+   }
+   ```
+3. **Upload covers** using the Vinyl Intake card (visible when vinyl mode is enabled). Select multiple images (front/back/liner notes) in one submission; the backend merges OCR results and refreshes the UI automatically.
+
+Stop both servers with `Ctrl+C`. Reactivate the Python venv (`source server/venv/bin/activate`) whenever you restart the backend.
+
 ## 📁 Project Structure
 
 ```
@@ -708,3 +751,37 @@ Built for the EDM/DJ community to help manage and organize music collections eff
 ---
 
 **Enjoy managing your EDM music collection with Beatrove!** 🎵✨
+
+## 📸 Vinyl OCR Pipeline (Optional)
+
+If you want to manage physical vinyl by scanning cover art, enable the auxiliary ingestion server:
+
+1. **Install dependencies**
+   ```bash
+   python3 -m venv venv
+   source venv/bin/activate
+   pip install -r server/requirements.txt
+   ```
+2. **Configure OCR**
+   - **HTTP model (recommended for http://127.0.0.1:8089)**:
+     ```bash
+     export VINYL_OCR_HTTP_URL="http://127.0.0.1:8089"
+     export VINYL_OCR_PROMPT='You are an expert archivist for vinyl records. Respond ONLY with JSON like {"artist":"","composer":"","record_name":"","catalog_number":"","label":"","year":"","location":"","notes":""}. Fill empty strings when unknown.'
+     export VINYL_OCR_MODEL="nanonets/Nanonets-OCR2-3B"
+     export VINYL_OCR_TEMPERATURE="0.0"
+     export VINYL_OCR_MAX_TOKENS="15000"
+     ```
+     The FastAPI server encodes the image as `data:<mime>;base64,<blob>` and POSTs a JSON payload with `model`, `temperature`, `max_tokens`, and a `messages` array (image + prompt). Customize these env vars if your OCR provider expects different parameters/language.
+   - **CLI fallback**: alternatively point `VINYL_OCR_COMMAND` at a script/binary that writes JSON to STDOUT:
+     ```bash
+     export VINYL_OCR_COMMAND="python /path/to/ocr.py --image {image}"
+     ```
+3. **Run the API**:
+   ```bash
+   uvicorn server.app:app --reload --port 9000
+   ```
+4. **Enable vinyl mode** by setting `VINYL_MODE.ENABLED = true` in `assets/js/core/security-utils.js`. Update `API_BASE_URL`/`IMAGE_BASE_URL` if you use a different host or port.
+5. **Upload covers** from a REST client or a small form (POST `/api/v1/records` with one or more `covers` files + optional fields). The server stores every image, runs your OCR command on each, merges the metadata, and returns the combined record.
+6. **Use the built-in Vinyl Intake card** (shows up next to the search panel when vinyl mode is enabled) to drag/drop multiple sleeve photos directly from the UI, enter optional metadata, and trigger a catalog refresh automatically.
+
+When vinyl mode is active, the frontend fetches `/api/v1/records` instead of `tracklist.csv`, automatically rendering each record (artist, composer, catalog number) with the uploaded cover art. The rest of the application—filtering, playlists, statistics—continues to work on the returned metadata. If the server is unreachable, Beatrove falls back to the traditional `tracklist.csv` workflow.

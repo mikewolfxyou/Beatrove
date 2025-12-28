@@ -3773,6 +3773,100 @@ body.light-mode .duplicate-list-container {
   box-shadow: 0 0 0 3px rgba(255, 107, 107, 0.1);
 }
 
+.vinyl-upload-content {
+  margin-top: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+#vinyl-upload-card[hidden] {
+  display: none !important;
+}
+
+.vinyl-upload-description {
+  margin: 0;
+  color: var(--secondary-text-color);
+  font-size: 0.95em;
+}
+
+.vinyl-upload-form {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.vinyl-upload-file {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-weight: 600;
+  color: var(--text-color);
+}
+
+.vinyl-upload-file input[type="file"] {
+  padding: 10px;
+  border: 1px dashed var(--border-color);
+  border-radius: 8px;
+  background: var(--input-bg);
+  color: var(--text-color);
+}
+
+.vinyl-upload-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 10px;
+}
+
+.vinyl-upload-grid input,
+.vinyl-upload-form textarea {
+  width: 100%;
+  padding: 12px;
+  border-radius: 8px;
+  border: 1px solid var(--border-color);
+  background: var(--input-bg);
+  color: var(--text-color);
+  font-size: 0.95em;
+}
+
+.vinyl-upload-form textarea {
+  resize: vertical;
+}
+
+.vinyl-upload-actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.vinyl-upload-btn {
+  background: var(--accent-color);
+  color: #fff;
+  border: none;
+  padding: 12px 20px;
+  border-radius: 8px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: opacity 0.2s ease;
+}
+
+.vinyl-upload-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.vinyl-upload-status {
+  font-size: 0.9em;
+  color: var(--secondary-text-color);
+}
+
+.vinyl-upload-hint {
+  margin: 0;
+  font-size: 0.85em;
+  color: var(--secondary-text-color);
+}
+
 .clear-search {
   position: absolute;
   right: 15px;

@@ -6,6 +6,7 @@
 'use strict';
 
 import { ErrorHandler } from '../core/error-handler.js';
+import { CONFIG } from '../core/security-utils.js';
 
 // ============= UI CONTROLLER =============
 export class UIController {
@@ -36,6 +37,7 @@ export class UIController {
 
     // Track active event listeners for cleanup
     this.activeEventListeners = new Map(); // element -> [listeners]
+    this.vinylReloadHandler = null;
   }
 
   attachEventListeners() {
@@ -56,6 +58,13 @@ export class UIController {
 
     // Play queue handlers
     this.setupPlayQueueHandlers();
+
+    // Vinyl upload handlers
+    this.setupVinylUploadHandlers();
+  }
+
+  setVinylReloadHandler(handler) {
+    this.vinylReloadHandler = handler;
   }
 
   setupPaginationControls() {
@@ -647,6 +656,104 @@ export class UIController {
     const audioFolderInput = document.getElementById('audio-folder-input');
     if (audioFolderInput) {
       audioFolderInput.addEventListener('change', (e) => this.handleAudioFolderUpload(e));
+    }
+  }
+
+  setupVinylUploadHandlers() {
+    const card = document.getElementById('vinyl-upload-card');
+    const form = document.getElementById('vinyl-upload-form');
+    const submitBtn = document.getElementById('vinyl-upload-submit');
+    const statusEl = document.getElementById('vinyl-upload-status');
+
+    if (!card || !form || !submitBtn) {
+      return;
+    }
+
+    const vinylConfig = CONFIG?.VINYL_MODE || {};
+    if (!vinylConfig.ENABLED || !vinylConfig.API_BASE_URL) {
+      card.hidden = true;
+      return;
+    }
+
+    card.hidden = false;
+    const apiBaseUrl = vinylConfig.API_BASE_URL.replace(/\/$/, '');
+
+    form.addEventListener('submit', (event) => {
+      event.preventDefault();
+      this.handleVinylUpload({
+        form,
+        submitBtn,
+        statusEl,
+        endpoint: `${apiBaseUrl}/records`
+      });
+    });
+  }
+
+  async handleVinylUpload({ form, submitBtn, statusEl, endpoint }) {
+    const coverInput = form.querySelector('#vinyl-cover-input');
+    const files = Array.from(coverInput?.files || []);
+    if (!coverInput || files.length === 0) {
+      this.notificationSystem?.error('Please select at least one cover image.');
+      return;
+    }
+
+    const formData = new FormData();
+    files.forEach(file => formData.append('covers', file));
+
+    const fields = ['artist', 'composer', 'record_name', 'catalog_number', 'label', 'year', 'location', 'notes'];
+    fields.forEach((field) => {
+      const input = form.querySelector(`[name="${field}"]`);
+      if (input && input.value.trim()) {
+        formData.append(field, input.value.trim());
+      }
+    });
+
+    submitBtn.disabled = true;
+    const defaultBtnText = submitBtn.textContent;
+    submitBtn.textContent = 'Uploading...';
+    if (statusEl) {
+      statusEl.textContent = 'Uploading record...';
+    }
+
+    try {
+      const response = await fetch(endpoint, {
+        method: 'POST',
+        body: formData
+      });
+
+      if (!response.ok) {
+        const errorPayload = await response.json().catch(() => ({}));
+        const message = errorPayload?.detail || `Upload failed (${response.status})`;
+        throw new Error(message);
+      }
+
+      form.reset();
+      if (statusEl) {
+        statusEl.textContent = 'Record uploaded successfully.';
+      }
+      if (this.notificationSystem) {
+        this.notificationSystem.success('Vinyl record uploaded');
+      }
+
+      if (typeof this.vinylReloadHandler === 'function') {
+        await this.vinylReloadHandler();
+      }
+    } catch (error) {
+      console.error('Vinyl upload failed:', error);
+      if (statusEl) {
+        statusEl.textContent = error.message || 'Upload failed. Check server logs.';
+      }
+      if (this.notificationSystem) {
+        this.notificationSystem.error(error.message || 'Vinyl upload failed');
+      }
+    } finally {
+      submitBtn.disabled = false;
+      submitBtn.textContent = defaultBtnText;
+      if (statusEl) {
+        setTimeout(() => {
+          statusEl.textContent = '';
+        }, 5000);
+      }
     }
   }
 

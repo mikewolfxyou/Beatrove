@@ -700,7 +700,7 @@ export class UIRenderer {
     coverArtImg.className = 'cover-art-image';
 
     // Try to find cover art for this track
-    const coverArtPath = this.resolveCoverArtPath(track);
+    const coverArtPath = track.coverImageUrl || this.resolveCoverArtPath(track);
 
     if (coverArtPath) {
       // Always load cover art fresh to avoid revoked blob URL issues
@@ -888,6 +888,19 @@ export class UIRenderer {
 
   async loadCoverArt(coverArtPath, imgElement) {
     return this.errorHandler.safeAsync(async () => {
+      if (!coverArtPath) {
+        imgElement.src = this.createPlaceholderDataUrl();
+        imgElement.classList.add('placeholder');
+        return;
+      }
+
+      const isRemotePath = /^https?:\/\//i.test(coverArtPath) || coverArtPath.startsWith('/');
+      if (isRemotePath) {
+        const absolutePath = this.resolveRemoteCoverArtPath(coverArtPath);
+        imgElement.src = absolutePath;
+        return;
+      }
+
       // Check if we have the cover art file in our audio manager's file map
       const coverArtFile = this.findCoverArtFile(coverArtPath);
 
@@ -925,6 +938,18 @@ export class UIRenderer {
       operation: 'cover art loading',
       showUser: false
     });
+  }
+
+  resolveRemoteCoverArtPath(path) {
+    if (/^https?:\/\//i.test(path)) {
+      return path;
+    }
+    const baseUrl = CONFIG?.VINYL_MODE?.IMAGE_BASE_URL || '';
+    if (!baseUrl) {
+      return path;
+    }
+    const separator = path.startsWith('/') ? '' : '/';
+    return `${baseUrl}${separator}${path}`;
   }
 
   findCoverArtFile(coverArtPath) {

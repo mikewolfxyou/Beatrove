@@ -9,6 +9,7 @@
 import { CONFIG, SecurityUtils, RateLimiter } from './core/security-utils.js';
 import { FuzzySearchUtils } from './core/fuzzy-search.js';
 import { ErrorHandler } from './core/error-handler.js';
+import { VinylService } from './core/vinyl-service.js';
 
 // Import audio modules
 import { AudioManager } from './audio/audio-manager.js';
@@ -754,6 +755,8 @@ class BeatroveApp {
     this.visualizer = new AudioVisualizer(this.audioManager);
     this.tracklistCompareUI = null; // Will be initialized after DOM loads
     this.initialized = false;
+    this.vinylService = new VinylService(CONFIG?.VINYL_MODE || {});
+    this.controller.setVinylReloadHandler(() => this.loadVinylRecords());
   }
 
   async init() {
@@ -938,50 +941,95 @@ class BeatroveApp {
   }
 
   async loadDefaultTracklist() {
+    if (this.vinylService?.isEnabled?.()) {
+      const vinylLoaded = await this.loadVinylRecords();
+      if (vinylLoaded) {
+        return true;
+      }
+      this.notificationSystem.warning('Vinyl API unavailable. Falling back to local tracklist file.');
+    }
+    return this.loadCsvTracklist();
+  }
+
+  async loadCsvTracklist() {
     return this.errorHandler.safeAsync(async () => {
       const response = await fetch('tracklist.csv');
       if (!response.ok) throw new Error('No default tracklist');
 
       const text = await response.text();
       const result = TrackProcessor.processTracklist(text, 'tracklist.csv');
-
-      // Debug: Check user data before updating tracks
-      console.log('📁 Before loading tracklist - User data count:', {
-        favoriteTracks: Object.keys(this.appState.data.favoriteTracks || {}).length,
-        playlists: Object.keys(this.appState.data.playlists || {}).length,
-        trackTags: Object.keys(this.appState.data.trackTags || {}).length,
-        energyLevels: Object.keys(this.appState.data.energyLevels || {}).length
-      });
-
-      // Update only track-related data, preserve user data
-      this.appState.data.grouped = result.grouped;
-      this.appState.data.totalTracks = result.totalTracks;
-      this.appState.data.duplicateTracks = result.duplicateTracks;
-      this.appState.data.tracksForUI = result.tracksForUI;
-
-      // Debug: Check user data after updating tracks
-      console.log('📁 After loading tracklist - User data count:', {
-        favoriteTracks: Object.keys(this.appState.data.favoriteTracks || {}).length,
-        playlists: Object.keys(this.appState.data.playlists || {}).length,
-        trackTags: Object.keys(this.appState.data.trackTags || {}).length,
-        energyLevels: Object.keys(this.appState.data.energyLevels || {}).length
-      });
-
-      // Merge energy levels from CSV with existing energy levels
-      if (result.energyLevels && Object.keys(result.energyLevels).length > 0) {
-        Object.assign(this.appState.data.energyLevels, result.energyLevels);
-      }
-
-      // Update footer timestamp
+      this.applyTrackState(result);
+      this.refreshUIAfterTrackLoad();
       this.uiController.updateFooterTimestamp();
+      return true;
     }, {
       component: 'BeatroveApp',
-      method: 'loadDefaultTracklist',
+      method: 'loadCsvTracklist',
       operation: 'default tracklist loading',
       showUser: false,
       logToConsole: false,
       fallbackValue: null
     });
+  }
+
+  async loadVinylRecords() {
+    return this.errorHandler.safeAsync(async () => {
+      const result = await this.vinylService.fetchTrackState();
+      if (!result || result.totalTracks === 0) {
+        throw new Error('Vinyl API returned no records');
+      }
+      this.applyTrackState(result);
+      this.refreshUIAfterTrackLoad();
+      this.notificationSystem.success('Vinyl catalog loaded from auxiliary API');
+      this.uiController.updateFooterTimestamp();
+      return true;
+    }, {
+      component: 'BeatroveApp',
+      method: 'loadVinylRecords',
+      operation: 'vinyl api loading',
+      showUser: false,
+      logToConsole: false,
+      fallbackValue: null
+    });
+  }
+
+  applyTrackState(result) {
+    if (!result) return;
+
+    // Debug: Check user data before updating tracks
+    console.log('📁 Before loading tracklist - User data count:', {
+      favoriteTracks: Object.keys(this.appState.data.favoriteTracks || {}).length,
+      playlists: Object.keys(this.appState.data.playlists || {}).length,
+      trackTags: Object.keys(this.appState.data.trackTags || {}).length,
+      energyLevels: Object.keys(this.appState.data.energyLevels || {}).length
+    });
+
+    this.appState.data.grouped = result.grouped || {};
+    this.appState.data.totalTracks = result.totalTracks || 0;
+    this.appState.data.duplicateTracks = result.duplicateTracks || [];
+    this.appState.data.tracksForUI = result.tracksForUI || [];
+
+    if (result.energyLevels && Object.keys(result.energyLevels).length > 0) {
+      Object.assign(this.appState.data.energyLevels, result.energyLevels);
+    }
+
+    // Debug: Check user data after updating tracks
+    console.log('📁 After loading tracklist - User data count:', {
+      favoriteTracks: Object.keys(this.appState.data.favoriteTracks || {}).length,
+      playlists: Object.keys(this.appState.data.playlists || {}).length,
+      trackTags: Object.keys(this.appState.data.trackTags || {}).length,
+      energyLevels: Object.keys(this.appState.data.energyLevels || {}).length
+    });
+  }
+
+  refreshUIAfterTrackLoad() {
+    if (!this.initialized) {
+      return;
+    }
+    this.controller.populateFilterDropdowns();
+    this.controller.updatePlaylistSelector();
+    this.controller.updatePlaylistButtonStates();
+    this.renderer.render();
   }
 
   cleanup() {
