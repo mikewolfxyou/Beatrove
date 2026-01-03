@@ -640,7 +640,7 @@ export class UIRenderer {
 
     const details = [
       { label: 'Composer', value: track.composer },
-      { label: 'Catalogue', value: track.composerCode },
+      { label: 'Composer Code', value: track.composerCode },
       { label: 'Key', value: track.key },
       { label: 'BPM', value: track.bpm },
       { label: 'Genre', value: track.genre },
