@@ -1,0 +1,124 @@
+from __future__ import annotations
+
+import json
+import os
+import re
+from typing import Any, Dict, Optional
+
+import requests
+
+
+class LLMClient:
+  """Simple HTTP client for the local LLM completions endpoint."""
+
+  def __init__(self):
+    self.endpoint = os.getenv('LLM_ENDPOINT')
+    self.model = os.getenv('LLM_MODEL', 'beatrove-local-metadata')
+    self.temperature = _get_float_env('LLM_TEMPERATURE', 0.0)
+    self.top_p = _get_float_env('LLM_TOP_P', 1.0)
+    self.timeout = _get_float_env('LLM_TIMEOUT_SECONDS', 60.0)
+    self.max_retries = int(os.getenv('LLM_MAX_RETRIES', '2'))
+    self.max_tokens = int(os.getenv('LLM_MAX_TOKENS', '512'))
+
+  @property
+  def available(self) -> bool:
+    return bool(self.endpoint)
+
+  def derive_metadata(self, prompt: str) -> Dict[str, str]:
+    """Send a prompt to the LLM endpoint and parse JSON output."""
+    if not self.available:
+      return {}
+
+    payload = {
+        'model': self.model,
+        'prompt': prompt,
+        'temperature': self.temperature,
+        'top_p': self.top_p,
+        'max_tokens': self.max_tokens,
+        'stream': False
+    }
+
+    for _ in range(self.max_retries):
+      try:
+        response = requests.post(self.endpoint, json=payload, timeout=self.timeout)
+      except requests.RequestException as exc:
+        print(f'[LLM] Request failed: {exc}')
+        continue
+
+      if response.status_code >= 400:
+        print(f'[LLM] Error {response.status_code}: {response.text}')
+        continue
+
+      text = self._extract_text(response)
+      if not text:
+        continue
+
+      parsed = self._parse_json_payload(text)
+      if parsed:
+        return parsed
+
+    return {}
+
+  def _extract_text(self, response: requests.Response) -> str:
+    try:
+      data = response.json()
+    except ValueError:
+      return response.text.strip()
+
+    if isinstance(data, dict):
+      if 'choices' in data:
+        choice = data['choices'][0] if data['choices'] else {}
+        if isinstance(choice, dict):
+          if 'text' in choice and isinstance(choice['text'], str):
+            return choice['text'].strip()
+          message = choice.get('message') or {}
+          content = message.get('content')
+          if isinstance(content, str):
+            return content.strip()
+          if isinstance(content, list):
+            for part in content:
+              if isinstance(part, dict) and part.get('type') == 'text':
+                text = part.get('text')
+                if isinstance(text, str):
+                  return text.strip()
+      text_field = data.get('text')
+      if isinstance(text_field, str):
+        return text_field.strip()
+    return response.text.strip()
+
+  def _parse_json_payload(self, text: str) -> Optional[Dict[str, str]]:
+    clean_text = text.strip()
+    clean_text = _strip_markdown_fences(clean_text)
+    try:
+      parsed = json.loads(clean_text)
+      if isinstance(parsed, dict):
+        return parsed
+    except json.JSONDecodeError:
+      pass
+
+    # Attempt to locate JSON object inside the string
+    match = re.search(r'\{.*\}', clean_text, re.DOTALL)
+    if match:
+      try:
+        parsed = json.loads(match.group(0))
+        if isinstance(parsed, dict):
+          return parsed
+      except json.JSONDecodeError:
+        return None
+    return None
+
+
+def _strip_markdown_fences(text: str) -> str:
+  if text.startswith('```'):
+    text = re.sub(r'^```[a-zA-Z0-9]*\s*', '', text)
+    if text.endswith('```'):
+      text = text[:-3]
+  return text.strip()
+
+
+def _get_float_env(key: str, default: float) -> float:
+  raw = os.getenv(key)
+  try:
+    return float(raw) if raw is not None else default
+  except ValueError:
+    return default

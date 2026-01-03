@@ -5,12 +5,13 @@ from pathlib import Path
 from typing import Dict, List, Optional
 from uuid import uuid4
 
-from fastapi import FastAPI, File, Form, HTTPException, UploadFile
+from fastapi import FastAPI, File, Form, HTTPException, UploadFile, Response
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from fastapi.staticfiles import StaticFiles
 
 from .database import (
+    delete_record as delete_record_from_db,
     fetch_record,
     fetch_records,
     find_existing_record,
@@ -18,6 +19,7 @@ from .database import (
     insert_record,
     update_record,
 )
+from .metadata_enricher import MetadataEnricher
 from .ocr_pipeline import extract_metadata
 
 
@@ -41,6 +43,7 @@ app.mount('/uploads', StaticFiles(directory=UPLOAD_DIR), name='uploads')
 
 # Initialize DB on startup
 init_db()
+metadata_enricher = MetadataEnricher()
 
 
 @app.get(f'{API_PREFIX}/records')
@@ -67,7 +70,9 @@ async def create_record(
     label: Optional[str] = Form(None),
     year: Optional[str] = Form(None),
     location: Optional[str] = Form(None),
-    notes: Optional[str] = Form(None)
+    notes: Optional[str] = Form(None),
+    genre: Optional[str] = Form(None),
+    key_signature: Optional[str] = Form(None)
 ):
   if not covers:
     raise HTTPException(status_code=400, detail='At least one cover image is required')
@@ -81,7 +86,9 @@ async def create_record(
       'label': _clean_text(label),
       'year': _clean_text(year),
       'location': _clean_text(location),
-      'notes': _clean_text(notes)
+      'notes': _clean_text(notes),
+      'genre': _clean_text(genre),
+      'key_signature': _clean_text(key_signature)
   }
 
   saved_paths: List[Path] = []
@@ -115,6 +122,8 @@ async def create_record(
       'year': metadata['year'],
       'location': metadata['location'],
       'notes': metadata['notes'],
+      'genre': metadata['genre'],
+      'key_signature': metadata['key_signature'],
       'cover_image_path': json.dumps(combined_paths, ensure_ascii=False),
       'raw_ocr_json': json.dumps(combined_raw, ensure_ascii=False)
   }
@@ -126,6 +135,15 @@ async def create_record(
   payload['id'] = record_id
   record = insert_record(payload)
   return JSONResponse({'record': hydrate_record(record)}, status_code=201)
+
+
+@app.delete(f'{API_PREFIX}/records/{{record_id}}', status_code=204)
+async def delete_record(record_id: str):
+  existing = fetch_record(record_id)
+  if not existing:
+    raise HTTPException(status_code=404, detail='Record not found')
+  delete_record_from_db(record_id)
+  return Response(status_code=204)
 
 
 async def save_cover_image(prefix: str, upload: UploadFile) -> Path:
@@ -147,7 +165,7 @@ def hydrate_record(record: Dict[str, str]) -> Dict[str, str]:
 
 def merge_metadata(manual: Dict[str, str], ocr_payloads: List[Dict[str, str]], existing: Optional[Dict[str, str]]) -> Dict[str, str]:
   result: Dict[str, str] = {}
-  fields = ['artist', 'composer', 'record_name', 'catalog_number', 'label', 'year', 'location', 'notes']
+  fields = ['artist', 'composer', 'record_name', 'catalog_number', 'label', 'year', 'location', 'notes', 'genre', 'key_signature']
   for field in fields:
     value = manual.get(field)
     if value:
@@ -163,7 +181,7 @@ def merge_metadata(manual: Dict[str, str], ocr_payloads: List[Dict[str, str]], e
         result[field] = existing_val
         continue
     result[field] = ''
-  return result
+  return metadata_enricher.enrich(result, ocr_payloads)
 
 
 def _first_non_empty(payloads: List[Dict[str, str]], field: str) -> str:

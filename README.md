@@ -206,6 +206,7 @@ Artbat - Horizon - 8A - 124.wav - 7:23 - 2022 - /path/to/file.wav - Techno - Ene
    export VINYL_OCR_MODEL="nanonets/Nanonets-OCR2-3B"
    export VINYL_OCR_TEMPERATURE="0.0"
    export VINYL_OCR_MAX_TOKENS="15000"
+   # If you only provide the host (e.g., http://127.0.0.1:8089) the app automatically calls /v1/chat/completions.
    # Optional CLI fallback
    # export VINYL_OCR_COMMAND="python /path/to/ocr.py --image {image}"
    cd ..
@@ -783,5 +784,6 @@ If you want to manage physical vinyl by scanning cover art, enable the auxiliary
 4. **Enable vinyl mode** by setting `VINYL_MODE.ENABLED = true` in `assets/js/core/security-utils.js`. Update `API_BASE_URL`/`IMAGE_BASE_URL` if you use a different host or port.
 5. **Upload covers** from a REST client or a small form (POST `/api/v1/records` with one or more `covers` files + optional fields). The server stores every image, runs your OCR command on each, merges the metadata, and returns the combined record.
 6. **Use the built-in Vinyl Intake card** (shows up next to the search panel when vinyl mode is enabled) to drag/drop multiple sleeve photos directly from the UI, enter optional metadata, and trigger a catalog refresh automatically.
+7. **Remove mistakes instantly:** when a vinyl track appears in the library, click the trash icon next to its controls to delete the underlying record from the auxiliary SQLite database. A confirmation protects against accidental removal.
 
 When vinyl mode is active, the frontend fetches `/api/v1/records` instead of `tracklist.csv`, automatically rendering each record (artist, composer, catalog number) with the uploaded cover art. The rest of the application—filtering, playlists, statistics—continues to work on the returned metadata. If the server is unreachable, Beatrove falls back to the traditional `tracklist.csv` workflow.

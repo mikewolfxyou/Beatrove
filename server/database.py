@@ -24,6 +24,8 @@ class VinylRecord:
   year: str = ''
   location: str = ''
   notes: str = ''
+  genre: str = ''
+  key_signature: str = ''
   cover_image_path: str = ''
   raw_ocr_json: str = ''
   created_at: str = ''
@@ -35,6 +37,13 @@ class VinylRecord:
 
 def _ensure_db_path() -> None:
   DB_PATH.parent.mkdir(parents=True, exist_ok=True)
+
+
+def _ensure_column(conn: sqlite3.Connection, table: str, column: str, definition: str) -> None:
+  cursor = conn.execute(f'PRAGMA table_info({table})')
+  columns = {row[1] for row in cursor.fetchall()}
+  if column not in columns:
+    conn.execute(f'ALTER TABLE {table} ADD COLUMN {column} {definition}')
 
 
 def init_db() -> None:
@@ -53,6 +62,8 @@ def init_db() -> None:
           year TEXT,
           location TEXT,
           notes TEXT,
+          genre TEXT,
+          key_signature TEXT,
           cover_image_path TEXT,
           raw_ocr_json TEXT,
           created_at TEXT,
@@ -60,6 +71,8 @@ def init_db() -> None:
         )
         """
     )
+    _ensure_column(conn, 'records', 'genre', 'TEXT')
+    _ensure_column(conn, 'records', 'key_signature', 'TEXT')
     conn.commit()
 
 
@@ -181,3 +194,10 @@ def fetch_records(limit: Optional[int] = None) -> List[Dict[str, Any]]:
     rows = cursor.fetchall()
 
   return [serialize_row(row) for row in rows]
+
+
+def delete_record(record_id: str) -> bool:
+  with get_connection() as conn:
+    cursor = conn.execute('DELETE FROM records WHERE id = ?', (record_id,))
+    conn.commit()
+    return cursor.rowcount > 0

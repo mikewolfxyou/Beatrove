@@ -182,6 +182,11 @@ export class UIController {
         else if (target.classList.contains('mood-vibe-btn')) {
           this.showMoodVibeInput(target.dataset.trackDisplay, target);
         }
+
+        // Delete vinyl record
+        else if (target.classList.contains('delete-vinyl-btn')) {
+          this.deleteVinylRecord(target.dataset.recordId, target.dataset.trackDisplay);
+        }
       });
     }
   }
@@ -700,7 +705,7 @@ export class UIController {
     const formData = new FormData();
     files.forEach(file => formData.append('covers', file));
 
-    const fields = ['artist', 'composer', 'record_name', 'catalog_number', 'label', 'year', 'location', 'notes'];
+    const fields = ['artist', 'composer', 'record_name', 'catalog_number', 'label', 'year', 'location', 'notes', 'genre', 'key_signature'];
     fields.forEach((field) => {
       const input = form.querySelector(`[name="${field}"]`);
       if (input && input.value.trim()) {
@@ -755,6 +760,78 @@ export class UIController {
         }, 5000);
       }
     }
+  }
+
+  async deleteVinylRecord(recordId, trackDisplay) {
+    if (!recordId) {
+      this.notificationSystem?.error('Unable to delete this record because its ID is missing.');
+      return;
+    }
+
+    const vinylConfig = CONFIG?.VINYL_MODE || {};
+    const apiBaseUrl = (vinylConfig.API_BASE_URL || '').replace(/\/$/, '');
+    if (!vinylConfig.ENABLED || !apiBaseUrl) {
+      this.notificationSystem?.error('Vinyl API is not enabled.');
+      return;
+    }
+
+    const displayName = trackDisplay || 'this record';
+    const confirmed = window.confirm(`Delete ${displayName}? This action cannot be undone.`);
+    if (!confirmed) {
+      return;
+    }
+
+    try {
+      const response = await fetch(`${apiBaseUrl}/records/${encodeURIComponent(recordId)}`, {
+        method: 'DELETE'
+      });
+      if (!response.ok) {
+        throw new Error(`Server responded with ${response.status}`);
+      }
+      this.notificationSystem?.success(`Deleted ${displayName}.`);
+      this.removeVinylTrackLocally(recordId);
+      if (typeof this.vinylReloadHandler === 'function') {
+        await this.vinylReloadHandler();
+      }
+    } catch (error) {
+      console.error('Failed to delete vinyl record', error);
+      this.notificationSystem?.error('Failed to delete the record. Please try again.');
+    }
+  }
+
+  removeVinylTrackLocally(recordId) {
+    if (!recordId || !this.appState?.data) {
+      return;
+    }
+
+    const matchesRecord = (track) => {
+      if (!track) return false;
+      return track.recordId === recordId || track?.vinyl?.recordId === recordId;
+    };
+
+    const currentTracks = this.appState.data.tracksForUI || [];
+    const filteredTracks = currentTracks.filter(track => !matchesRecord(track));
+    if (filteredTracks.length === currentTracks.length) {
+      return; // nothing removed
+    }
+
+    this.appState.data.tracksForUI = filteredTracks;
+    this.appState.data.totalTracks = filteredTracks.length;
+
+    if (this.appState.data.grouped) {
+      Object.keys(this.appState.data.grouped).forEach(artist => {
+        const list = this.appState.data.grouped[artist] || [];
+        const updated = list.filter(track => !matchesRecord(track));
+        if (updated.length > 0) {
+          this.appState.data.grouped[artist] = updated;
+        } else {
+          delete this.appState.data.grouped[artist];
+        }
+      });
+    }
+
+    this.renderer.render();
+    this.updateFooterTimestamp();
   }
 
   setupPlayQueueHandlers() {

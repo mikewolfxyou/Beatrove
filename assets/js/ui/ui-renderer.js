@@ -823,6 +823,19 @@ export class UIRenderer {
       }
     ];
 
+    if (track.vinyl && track.vinyl.recordId && CONFIG?.VINYL_MODE?.ENABLED) {
+      buttons.push({
+        class: 'delete-vinyl-btn',
+        iconPath: `${ICON_BASE_PATH}delete.svg`,
+        fallbackText: 'X',
+        title: 'Delete Vinyl Record',
+        data: {
+          recordId: track.vinyl.recordId,
+          trackDisplay: track.display
+        }
+      });
+    }
+
     buttons.forEach(buttonConfig => {
       if (buttonConfig.condition !== undefined && !buttonConfig.condition) return;
 

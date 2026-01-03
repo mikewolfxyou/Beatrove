@@ -10,6 +10,7 @@ from pathlib import Path
 from typing import Any, Dict, Optional, Tuple
 
 import re
+from urllib.parse import urlparse, urlunparse
 
 import requests
 
@@ -31,6 +32,7 @@ def extract_metadata(image_path: Path) -> Dict[str, str]:
 
 
 def _run_http_ocr(endpoint: str, image_path: Path) -> Dict[str, str]:
+  endpoint = _normalize_http_endpoint(endpoint)
   try:
     encoded_image, mime_type = _encode_image(image_path)
   except OSError:
@@ -210,3 +212,13 @@ def _get_int_env(key: str, default: int) -> int:
     return int(raw) if raw is not None else default
   except ValueError:
     return default
+
+
+def _normalize_http_endpoint(endpoint: str) -> str:
+  if not endpoint:
+    return endpoint
+  parsed = urlparse(endpoint)
+  path = parsed.path or ''
+  if path in ('', '/'):
+    parsed = parsed._replace(path='/v1/chat/completions')
+  return urlunparse(parsed)
