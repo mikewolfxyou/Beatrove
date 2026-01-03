@@ -20,6 +20,7 @@ class VinylRecord:
   composer: str = ''
   record_name: str = ''
   catalog_number: str = ''
+  composer_code: str = ''
   label: str = ''
   year: str = ''
   location: str = ''
@@ -58,6 +59,7 @@ def init_db() -> None:
           composer TEXT,
           record_name TEXT,
           catalog_number TEXT,
+          composer_code TEXT,
           label TEXT,
           year TEXT,
           location TEXT,
@@ -73,6 +75,7 @@ def init_db() -> None:
     )
     _ensure_column(conn, 'records', 'genre', 'TEXT')
     _ensure_column(conn, 'records', 'key_signature', 'TEXT')
+    _ensure_column(conn, 'records', 'composer_code', 'TEXT')
     conn.commit()
 
 

@@ -69,6 +69,7 @@ async def create_record(
     composer: Optional[str] = Form(None),
     record_name: Optional[str] = Form(None),
     catalog_number: Optional[str] = Form(None),
+    composer_code: Optional[str] = Form(None),
     label: Optional[str] = Form(None),
     year: Optional[str] = Form(None),
     location: Optional[str] = Form(None),
@@ -85,6 +86,7 @@ async def create_record(
       'composer': _clean_text(composer),
       'record_name': _clean_text(record_name),
       'catalog_number': _clean_text(catalog_number),
+      'composer_code': _clean_text(composer_code),
       'label': _clean_text(label),
       'year': _clean_text(year),
       'location': _clean_text(location),
@@ -126,6 +128,7 @@ async def create_record(
       'composer': metadata['composer'],
       'record_name': metadata['record_name'],
       'catalog_number': metadata['catalog_number'],
+      'composer_code': metadata['composer_code'],
       'label': metadata['label'],
       'year': metadata['year'],
       'location': metadata['location'],
@@ -186,7 +189,7 @@ def hydrate_record(record: Dict[str, str]) -> Dict[str, str]:
 
 def merge_metadata(manual: Dict[str, str], ocr_payloads: List[Dict[str, str]], existing: Optional[Dict[str, str]]) -> Dict[str, str]:
   result: Dict[str, str] = {}
-  fields = ['artist', 'composer', 'record_name', 'catalog_number', 'label', 'year', 'location', 'notes', 'genre', 'key_signature']
+  fields = ['artist', 'composer', 'record_name', 'catalog_number', 'composer_code', 'label', 'year', 'location', 'notes', 'genre', 'key_signature']
   for field in fields:
     value = manual.get(field)
     if value:

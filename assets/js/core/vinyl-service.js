@@ -138,6 +138,7 @@ export class VinylService {
     const keySignature = SecurityUtils.sanitizeText(record.key_signature || '');
     const genre = SecurityUtils.sanitizeText(record.genre || '');
     const recordId = SecurityUtils.sanitizeText(record.id || '');
+    const composerCode = SecurityUtils.sanitizeText(record.composer_code || '');
     const coverUrls = Array.isArray(record.cover_image_urls) ? record.cover_image_urls : (record.cover_image_url ? [record.cover_image_url] : []);
     const normalizedCoverUrls = coverUrls.map(url => this.normalizeImageUrl(url));
     const coverImageUrl = normalizedCoverUrls[0] || '';
@@ -148,6 +149,8 @@ export class VinylService {
     return {
       artist,
       title,
+      composer,
+      composerCode,
       key: resolvedKey || composer,
       bpm: '',
       trackTime: '',
@@ -167,6 +170,7 @@ export class VinylService {
         ocr: record.raw_ocr_json || {},
         coverImages: normalizedCoverUrls,
         keySignature: resolvedKey,
+        composerCode,
         recordId
       }
     };

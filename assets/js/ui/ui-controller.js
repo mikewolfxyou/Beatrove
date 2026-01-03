@@ -714,7 +714,7 @@ export class UIController {
     const formData = new FormData();
     files.forEach(file => formData.append('covers', file));
 
-    const fields = ['artist', 'composer', 'record_name', 'catalog_number', 'label', 'year', 'location', 'notes', 'genre', 'key_signature'];
+    const fields = ['artist', 'composer', 'composer_code', 'record_name', 'catalog_number', 'label', 'year', 'location', 'notes', 'genre', 'key_signature'];
     fields.forEach((field) => {
       const input = form.querySelector(`[name="${field}"]`);
       if (input && input.value.trim()) {

@@ -307,7 +307,9 @@ export class UIRenderer {
           // Standard exact substring matching
           searchMatch = track.display.toLowerCase().includes(filters.search) ||
                        track.artist?.toLowerCase().includes(filters.search) ||
-                       track.title?.toLowerCase().includes(filters.search);
+                       track.title?.toLowerCase().includes(filters.search) ||
+                       track.composer?.toLowerCase().includes(filters.search) ||
+                       track.composerCode?.toLowerCase().includes(filters.search);
         }
 
         if (!searchMatch) return false;
@@ -637,6 +639,8 @@ export class UIRenderer {
     const energyDisplay = energyLevel ? `${'★'.repeat(energyLevel)}${'☆'.repeat(10 - energyLevel)} (${energyLevel}/10)` : '';
 
     const details = [
+      { label: 'Composer', value: track.composer },
+      { label: 'Catalogue', value: track.composerCode },
       { label: 'Key', value: track.key },
       { label: 'BPM', value: track.bpm },
       { label: 'Genre', value: track.genre },
