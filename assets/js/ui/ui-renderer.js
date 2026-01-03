@@ -225,8 +225,14 @@ export class UIRenderer {
 
   getActiveFilters() {
     // Ensure elements are defined with fallback to document.getElementById
+    const searchInput = document.getElementById('search');
+    const rawSearchValue = searchInput?.value || '';
+    const composerMatch = rawSearchValue.match(/^composer:"([^"]+)"$/i);
+    const normalizedSearch = composerMatch ? '' : rawSearchValue.toLowerCase();
+
     const filters = {
-      search: document.getElementById('search')?.value.toLowerCase() || '',
+      search: normalizedSearch,
+      composerSearch: composerMatch ? composerMatch[1].toLowerCase() : '',
       artistSearch: document.getElementById('artist-search')?.value.toLowerCase() || '',
       fuzzySearchEnabled: document.getElementById('fuzzy-search-toggle')?.checked || false,
       selectedBPM: (this.appState.elements?.bpmFilter?.value) || document.getElementById('bpm-filter')?.value || '',
@@ -245,7 +251,7 @@ export class UIRenderer {
   }
 
   hasActiveFilters(filters) {
-    return filters.search || filters.artistSearch || filters.selectedBPM || filters.selectedKey ||
+    return filters.search || filters.composerSearch || filters.artistSearch || filters.selectedBPM || filters.selectedKey ||
            filters.selectedGenre || filters.selectedEnergy || filters.selectedLabel ||
            filters.tagSearch || filters.yearSearch || filters.showFavoritesOnly ||
            filters.azFilter;
@@ -276,6 +282,14 @@ export class UIRenderer {
         }
 
         if (!artistMatch) return false;
+      }
+
+      // Composer quick filter (triggered via stats quick filter)
+      if (filters.composerSearch) {
+        const trackComposer = (track.vinyl?.composer || track.composer || '').toLowerCase();
+        if (!trackComposer.includes(filters.composerSearch)) {
+          return false;
+        }
       }
 
       // Search filter (with optional fuzzy matching)
@@ -338,10 +352,23 @@ export class UIRenderer {
       // A-Z filter
       if (filters.azFilter) {
         const artistFirstChar = this.normalizeFirstCharacter(track.artist || '');
+        const composerName = track?.vinyl?.composer || track?.composer || '';
+        const composerFirstChar = composerName ? this.normalizeFirstCharacter(composerName) : '';
 
-        if (filters.azFilter === 'numbers' && artistFirstChar !== 'numbers') return false;
-        if (filters.azFilter === 'symbols' && artistFirstChar !== 'symbols') return false;
-        if (filters.azFilter.length === 1 && artistFirstChar !== filters.azFilter) return false;
+        const matchesCategory = (value) => {
+          if (!value) return false;
+          if (filters.azFilter === 'numbers') return value === 'numbers';
+          if (filters.azFilter === 'symbols') return value === 'symbols';
+          if (filters.azFilter.length === 1) return value === filters.azFilter;
+          return false;
+        };
+
+        const artistMatches = matchesCategory(artistFirstChar);
+        const composerMatches = matchesCategory(composerFirstChar);
+
+        if (!artistMatches && !composerMatches) {
+          return false;
+        }
       }
 
       return true;
@@ -1207,6 +1234,11 @@ export class UIRenderer {
     if (!stats) return;
 
     const artistCount = new Set(tracks.map(t => t.artist)).size;
+    const composerCount = new Set(
+      tracks
+        .map(t => (t.vinyl?.composer || t.composer || '').trim().toLowerCase())
+        .filter(Boolean)
+    ).size;
 
     let bpmStat = '';
     const bpms = tracks.map(t => parseInt(t.bpm)).filter(Boolean);
@@ -1220,6 +1252,7 @@ export class UIRenderer {
     const statsText = [
       `${tracks.length} tracks`,
       `${artistCount} artists`,
+      composerCount ? `${composerCount} composers` : '',
       bpmStat
     ].filter(Boolean).join(' • ');
 
@@ -1354,6 +1387,11 @@ export class UIRenderer {
       if (track.artist) {
         const firstChar = this.normalizeFirstCharacter(track.artist);
         initials.add(firstChar);
+      }
+      const composerName = track?.vinyl?.composer || track?.composer;
+      if (composerName) {
+        const composerChar = this.normalizeFirstCharacter(composerName);
+        initials.add(composerChar);
       }
     });
 

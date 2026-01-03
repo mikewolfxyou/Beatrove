@@ -272,8 +272,16 @@
             <span class="stat-value" id="total-artists">0</span>
           </div>
           <div class="stat-item">
+            <span class="stat-label">Total Composers:</span>
+            <span class="stat-value" id="total-composers">0</span>
+          </div>
+          <div class="stat-item">
             <span class="stat-label">Artist With Most Tracks:</span>
             <span class="stat-value" id="top-artist">-</span>
+          </div>
+          <div class="stat-item">
+            <span class="stat-label">Composer With Most Tracks:</span>
+            <span class="stat-value" id="top-composer">-</span>
           </div>
           <div class="stat-item">
             <span class="stat-label">Average Song Length:</span>
@@ -294,6 +302,21 @@
           <div class="chart-container">
             <canvas id="top-artists-chart"></canvas>
           </div>
+        </div>
+
+        <div class="stat-section quick-filter-section">
+          <h3>⚡ Quick Filters</h3>
+          <div class="quick-filter-columns">
+            <div class="quick-filter-column">
+              <h4>Top Artists</h4>
+              <div class="stats-list quick-filter-list" id="quick-filter-artists"></div>
+            </div>
+            <div class="quick-filter-column">
+              <h4>Top Composers</h4>
+              <div class="stats-list quick-filter-list" id="quick-filter-composers"></div>
+            </div>
+          </div>
+          <button id="clear-quick-filters" class="control-btn">Clear Quick Filters</button>
         </div>
 
         <div class="stat-section">
@@ -669,8 +692,16 @@
               <span class="overview-value" id="total-artists-count">0</span>
             </div>
             <div class="overview-item">
+              <span class="overview-label">Total Composers</span>
+              <span class="overview-value" id="total-composers-count">0</span>
+            </div>
+            <div class="overview-item">
               <span class="overview-label">Artist With Most Tracks</span>
               <span class="overview-value" id="top-artist-count">-</span>
+            </div>
+            <div class="overview-item">
+              <span class="overview-label">Composer With Most Tracks</span>
+              <span class="overview-value" id="top-composer-count">-</span>
             </div>
             <div class="overview-item">
               <span class="overview-label">Average Song Length</span>

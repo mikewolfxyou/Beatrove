@@ -50,6 +50,9 @@ export class UIController {
     // Filter and search handlers
     this.setupFilterHandlers();
 
+    // Quick filter handlers
+    this.setupQuickFilterHandlers();
+
     // Theme and settings handlers
     this.setupThemeHandlers();
 
@@ -236,7 +239,6 @@ export class UIController {
       artistSearchInput.addEventListener('input', () => {
         // Clear A-Z filter when search is used
         this.renderer.clearAZFilterOnly();
-
         // Show/hide clear button based on input content
         const clearBtn = document.getElementById('clear-artist-search');
         if (clearBtn) {
@@ -483,6 +485,13 @@ export class UIController {
     const savedWaveformStyle = this.appState.data.waveformStyle || 'default';
     if (this.visualizer && savedWaveformStyle) {
       this.visualizer.setWaveformStyle(savedWaveformStyle);
+    }
+  }
+
+  setupQuickFilterHandlers() {
+    const clearBtn = document.getElementById('clear-quick-filters');
+    if (clearBtn) {
+      clearBtn.addEventListener('click', () => this.clearQuickFilters());
     }
   }
 
@@ -797,6 +806,58 @@ export class UIController {
       console.error('Failed to delete vinyl record', error);
       this.notificationSystem?.error('Failed to delete the record. Please try again.');
     }
+  }
+
+  clearQuickFilters() {
+    const artistInput = document.getElementById('artist-search');
+    const searchInput = document.getElementById('search');
+    let changed = false;
+
+    if (artistInput && artistInput.value) {
+      artistInput.value = '';
+      document.getElementById('clear-artist-search')?.classList.remove('visible');
+      changed = true;
+    }
+
+    if (searchInput) {
+      const rawValue = searchInput.value.trim();
+      if (/^composer:"[^"]+"$/i.test(rawValue)) {
+        searchInput.value = '';
+        document.getElementById('clear-search')?.classList.remove('visible');
+        changed = true;
+      }
+    }
+
+    if (changed) {
+      this.renderer.render();
+      this.notificationSystem?.success('Quick filters cleared.');
+    } else {
+      this.notificationSystem?.info('No quick filters to clear.');
+    }
+  }
+
+  applyQuickFilter(type, value) {
+    if (!value) return;
+    const safeValue = value.replace(/"/g, '\'');
+
+    if (type === 'artist') {
+      const artistInput = document.getElementById('artist-search');
+      if (artistInput) {
+        artistInput.value = value;
+        artistInput.focus();
+        document.getElementById('clear-artist-search')?.classList.add('visible');
+      }
+    } else if (type === 'composer') {
+      const searchInput = document.getElementById('search');
+      if (searchInput) {
+        searchInput.value = `composer:"${safeValue}"`;
+        searchInput.focus();
+        document.getElementById('clear-search')?.classList.add('visible');
+      }
+    }
+
+    this.renderer.render();
+    this.notificationSystem?.info(`Filtering by ${type}: ${value}`);
   }
 
   removeVinylTrackLocally(recordId) {
@@ -1896,7 +1957,9 @@ export class UIController {
     // Update overview stats (main section)
     const totalTracksEl = document.getElementById('total-tracks');
     const totalArtistsEl = document.getElementById('total-artists');
+    const totalComposersEl = document.getElementById('total-composers');
     const topArtistEl = document.getElementById('top-artist');
+    const topComposerEl = document.getElementById('top-composer');
     const avgBpmEl = document.getElementById('average-bpm');
     const avgSongLengthEl = document.getElementById('average-song-length');
     const longestSongEl = document.getElementById('longest-song');
@@ -1905,9 +1968,15 @@ export class UIController {
 
     if (totalTracksEl) totalTracksEl.textContent = stats.totalTracks.toLocaleString();
     if (totalArtistsEl) totalArtistsEl.textContent = stats.totalArtists.toLocaleString();
+    if (totalComposersEl) totalComposersEl.textContent = stats.totalComposers.toLocaleString();
     if (topArtistEl) {
       topArtistEl.textContent = stats.artistWithMostTracks.name
         ? `${stats.artistWithMostTracks.name} (${stats.artistWithMostTracks.count})`
+        : '-';
+    }
+    if (topComposerEl) {
+      topComposerEl.textContent = stats.composerWithMostTracks.name
+        ? `${stats.composerWithMostTracks.name} (${stats.composerWithMostTracks.count})`
         : '-';
     }
     if (avgBpmEl) avgBpmEl.textContent = stats.averageBPM;
@@ -1929,14 +1998,22 @@ export class UIController {
     // Update overview stats (overlay section)
     const totalTracksCountEl = document.getElementById('total-tracks-count');
     const totalArtistsCountEl = document.getElementById('total-artists-count');
+    const totalComposersCountEl = document.getElementById('total-composers-count');
     const topArtistCountEl = document.getElementById('top-artist-count');
+    const topComposerCountEl = document.getElementById('top-composer-count');
     const avgSongLengthCountEl = document.getElementById('average-song-length-count');
 
     if (totalTracksCountEl) totalTracksCountEl.textContent = stats.totalTracks.toLocaleString();
     if (totalArtistsCountEl) totalArtistsCountEl.textContent = stats.totalArtists.toLocaleString();
+    if (totalComposersCountEl) totalComposersCountEl.textContent = stats.totalComposers.toLocaleString();
     if (topArtistCountEl) {
       topArtistCountEl.textContent = stats.artistWithMostTracks.name
         ? `${stats.artistWithMostTracks.name} (${stats.artistWithMostTracks.count})`
+        : '-';
+    }
+    if (topComposerCountEl) {
+      topComposerCountEl.textContent = stats.composerWithMostTracks.name
+        ? `${stats.composerWithMostTracks.name} (${stats.composerWithMostTracks.count})`
         : '-';
     }
     if (avgSongLengthCountEl) avgSongLengthCountEl.textContent = stats.averageSongLength;
@@ -1949,6 +2026,8 @@ export class UIController {
     this.createYearChart(stats.years);
     this.createLabelsChart(stats.labels);
     this.createTopArtistsChart(stats.topArtists);
+    this.renderQuickFilterList('quick-filter-artists', stats.topArtists, 'artist');
+    this.renderQuickFilterList('quick-filter-composers', stats.topComposers, 'composer');
 
     // Force all charts to resize after creation
     this.resizeAllCharts();
@@ -1959,13 +2038,16 @@ export class UIController {
     const stats = {
       totalTracks: tracks.length,
       totalArtists: new Set(tracks.map(t => t.artist)).size,
+      totalComposers: 0,
       totalDuration: '0:00',
       averageBPM: 0,
       averageSongLength: '0:00',
       longestSong: { title: '-', duration: '0:00' },
       shortestSong: { title: '-', duration: '0:00' },
       artistWithMostTracks: { name: '', count: 0 },
+      composerWithMostTracks: { name: '', count: 0 },
       topArtists: [],
+      topComposers: [],
       genres: [],
       bpmRanges: [],
       keys: [],
@@ -2025,6 +2107,7 @@ export class UIController {
     // Count occurrences
     const counters = {
       artists: {},
+      composers: {},
       genres: {},
       keys: {},
       energyLevels: {},
@@ -2036,6 +2119,10 @@ export class UIController {
       // Artist counting
       if (track.artist) {
         counters.artists[track.artist] = (counters.artists[track.artist] || 0) + 1;
+      }
+      const composerName = (track.vinyl?.composer || track.composer || '').trim();
+      if (composerName) {
+        counters.composers[composerName] = (counters.composers[composerName] || 0) + 1;
       }
       // Genre counting
       if (track.genre) {
@@ -2074,6 +2161,8 @@ export class UIController {
       }
     });
 
+    stats.totalComposers = Object.keys(counters.composers).length;
+
     // Convert to sorted arrays
     stats.genres = Object.entries(counters.genres)
       .sort((a, b) => b[1] - a[1])
@@ -2092,6 +2181,16 @@ export class UIController {
 
       // Get top 20 artists
       stats.topArtists = sortedArtists
+        .slice(0, 20)
+        .map(([name, count]) => ({ label: name, value: count }));
+    }
+
+    const composerEntries = Object.entries(counters.composers);
+    if (composerEntries.length > 0) {
+      const sortedComposers = composerEntries.sort((a, b) => b[1] - a[1]);
+      const topComposer = sortedComposers[0];
+      stats.composerWithMostTracks = { name: topComposer[0], count: topComposer[1] };
+      stats.topComposers = sortedComposers
         .slice(0, 20)
         .map(([name, count]) => ({ label: name, value: count }));
     }
@@ -2159,6 +2258,33 @@ export class UIController {
         <span class="stats-value">${item.value}</span>
       `;
       list.appendChild(listItem);
+    });
+  }
+
+  renderQuickFilterList(containerId, data, type) {
+    const container = document.getElementById(containerId);
+    if (!container) return;
+
+    container.innerHTML = '';
+
+    const items = (data || []).slice(0, 15);
+    if (items.length === 0) {
+      const empty = document.createElement('div');
+      empty.className = 'stats-item';
+      empty.textContent = 'No data yet';
+      container.appendChild(empty);
+      return;
+    }
+
+    items.forEach(item => {
+      const row = document.createElement('div');
+      row.className = 'stats-item quick-filter-item';
+      row.innerHTML = `
+        <span class="stats-label">${item.label}</span>
+        <span class="stats-value">${item.value}</span>
+      `;
+      row.addEventListener('click', () => this.applyQuickFilter(type, item.label));
+      container.appendChild(row);
     });
   }
 

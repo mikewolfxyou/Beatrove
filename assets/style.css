@@ -4398,6 +4398,62 @@ body.light-mode .filter-toggle-btn:hover {
   font-weight: 600;
 }
 
+.quick-filter-section .quick-filter-columns {
+  display: flex;
+  gap: 20px;
+  flex-wrap: wrap;
+}
+
+.quick-filter-column {
+  flex: 1;
+  min-width: 220px;
+  display: flex;
+  flex-direction: column;
+}
+
+.quick-filter-column h4 {
+  margin: 0 0 8px 0;
+  font-size: 0.95em;
+  color: rgba(255, 255, 255, 0.8);
+}
+
+.quick-filter-list {
+  max-height: 280px;
+  overflow-y: auto;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 8px;
+  padding: 8px 12px;
+  background: rgba(0, 0, 0, 0.2);
+}
+
+.quick-filter-list .stats-item {
+  cursor: pointer;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+  padding: 8px 0;
+  transition: background 0.15s ease, color 0.15s ease;
+}
+
+.quick-filter-list .stats-item:last-child {
+  border-bottom: none;
+}
+
+.quick-filter-list .stats-item:hover {
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.quick-filter-list .stats-label {
+  font-weight: 500;
+}
+
+.quick-filter-list .stats-value {
+  font-size: 0.85em;
+}
+
+.quick-filter-section .control-btn {
+  margin-top: 16px;
+  align-self: flex-start;
+}
+
 .duplicates-container {
   padding: 20px;
 }
