@@ -174,6 +174,9 @@ export class VinylService {
 
   normalizeImageUrl(url = '') {
     if (!url) return '';
+    if (url.startsWith('data:')) {
+      return url;
+    }
     if (url.startsWith('http://') || url.startsWith('https://')) {
       return url;
     }

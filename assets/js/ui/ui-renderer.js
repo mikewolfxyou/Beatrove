@@ -1075,6 +1075,11 @@ export class UIRenderer {
         return;
       }
 
+      if (typeof coverArtPath === 'string' && coverArtPath.startsWith('data:')) {
+        imgElement.src = coverArtPath;
+        return;
+      }
+
       const isRemotePath = /^https?:\/\//i.test(coverArtPath) || coverArtPath.startsWith('/');
       if (isRemotePath) {
         const absolutePath = this.resolveRemoteCoverArtPath(coverArtPath);

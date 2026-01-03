@@ -1,8 +1,10 @@
 from __future__ import annotations
 
+import base64
 import json
+import mimetypes
 from pathlib import Path
-from typing import Dict, List, Optional
+from typing import Dict, List, Optional, Tuple
 from uuid import uuid4
 
 from fastapi import FastAPI, File, Form, HTTPException, UploadFile, Response
@@ -91,17 +93,23 @@ async def create_record(
       'key_signature': _clean_text(key_signature)
   }
 
-  saved_paths: List[Path] = []
+  saved_images: List[str] = []
   ocr_payloads: List[Dict[str, str]] = []
 
   for upload in covers:
-    saved_path = await save_cover_image(record_id, upload)
-    saved_paths.append(saved_path)
-    payload = extract_metadata(saved_path)
-    if payload:
-      ocr_payloads.append(payload)
-
-  relative_paths = [str(path.relative_to(BASE_DIR)) for path in saved_paths]
+    saved_path, data_url = await save_cover_image(record_id, upload)
+    if data_url:
+      saved_images.append(data_url)
+    try:
+      payload = extract_metadata(saved_path) if saved_path else {}
+      if payload:
+        ocr_payloads.append(payload)
+    finally:
+      if saved_path:
+        try:
+          saved_path.unlink()
+        except FileNotFoundError:
+          pass
 
   dedupe_reference = merge_metadata(manual_values, ocr_payloads, None)
   existing = find_existing_record(dedupe_reference['artist'], dedupe_reference['record_name'], dedupe_reference['catalog_number'])
@@ -110,7 +118,7 @@ async def create_record(
 
   metadata = merge_metadata(manual_values, ocr_payloads, existing)
 
-  combined_paths = existing_cover_paths + relative_paths
+  combined_paths = existing_cover_paths + saved_images
   combined_raw = existing_raw + ocr_payloads
 
   payload: Dict[str, str] = {
@@ -146,17 +154,30 @@ async def delete_record(record_id: str):
   return Response(status_code=204)
 
 
-async def save_cover_image(prefix: str, upload: UploadFile) -> Path:
-  suffix = Path(upload.filename or '').suffix.lower() or '.jpg'
-  dest_path = UPLOAD_DIR / f'{prefix}_{uuid4().hex}{suffix}'
+async def save_cover_image(prefix: str, upload: UploadFile) -> Tuple[Optional[Path], str]:
+  filename = upload.filename or ''
+  suffix = Path(filename).suffix.lower() or '.jpg'
   content = await upload.read()
-  dest_path.write_bytes(content)
-  return dest_path
+  dest_path: Optional[Path] = None
+  if content:
+    dest_path = UPLOAD_DIR / f'{prefix}_{uuid4().hex}{suffix}'
+    dest_path.write_bytes(content)
+  mime_type = mimetypes.guess_type(filename)[0] or 'image/jpeg'
+  encoded = base64.b64encode(content or b'').decode('ascii') if content else ''
+  data_url = f'data:{mime_type};base64,{encoded}' if encoded else ''
+  return dest_path, data_url
 
 
 def hydrate_record(record: Dict[str, str]) -> Dict[str, str]:
   cover_paths = record.get('cover_image_paths') or []
-  cover_urls = [f"/uploads/{Path(path).name}" for path in cover_paths if path]
+  cover_urls = []
+  for path in cover_paths:
+    if not path:
+      continue
+    if isinstance(path, str) and path.startswith('data:'):
+      cover_urls.append(path)
+    else:
+      cover_urls.append(f"/uploads/{Path(path).name}")
   if cover_urls:
     record['cover_image_url'] = cover_urls[0]
   record['cover_image_urls'] = cover_urls
