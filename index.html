@@ -631,6 +631,24 @@
     </div>
   </div>
 
+  <!-- Cover Art Gallery Modal -->
+  <div id="cover-gallery-modal" class="modal hidden" aria-hidden="true">
+    <div class="modal-content cover-gallery-content">
+      <div class="modal-header">
+        <h2>🎨 Cover Gallery: <span id="cover-gallery-title"></span></h2>
+        <button class="modal-close" id="close-cover-gallery-modal" aria-label="Close cover gallery">✕</button>
+      </div>
+      <div class="modal-body">
+        <div id="cover-gallery-grid" class="cover-gallery-grid" role="list">
+          <!-- Cover art thumbnails injected here -->
+        </div>
+        <p id="cover-gallery-empty" class="cover-gallery-empty" style="display: none;">
+          No cover art was found for this track.
+        </p>
+      </div>
+    </div>
+  </div>
+
   <!-- Stats Section -->
   <div id="stats-section" class="overlay-section" style="display: none;">
     <div class="overlay-content">

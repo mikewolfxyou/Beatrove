@@ -1218,6 +1218,8 @@ body.light-mode .track .track-icons-row button:focus img[src$=".svg"] {
   overflow: hidden;
   border: 1px solid rgba(255, 255, 255, 0.1);
   background: linear-gradient(135deg, #2a2a2a 0%, #1a1a1a 100%);
+  cursor: pointer;
+  position: relative;
 }
 
 .cover-art-image {
@@ -1252,6 +1254,11 @@ body.light-mode .track-cover-art {
 body.light-mode .cover-art-image.placeholder {
   opacity: 0.7;
   filter: grayscale(0.2);
+}
+
+.track-cover-art:focus-visible {
+  outline: 2px solid var(--accent-color, #ff5252);
+  outline-offset: 2px;
 }
 
 /* Responsive cover art */
@@ -3260,6 +3267,56 @@ body.light-mode .library-summary-stats {
   display: flex;
   gap: 12px;
   justify-content: flex-end;
+}
+
+.cover-gallery-content {
+  width: 80vw;
+  max-width: 1400px;
+  height: 80vh;
+  max-height: 80vh;
+  display: flex;
+  flex-direction: column;
+}
+
+.cover-gallery-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 20px;
+  margin-bottom: 16px;
+}
+
+.cover-gallery-item {
+  border-radius: 12px;
+  overflow: hidden;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: rgba(0, 0, 0, 0.35);
+  aspect-ratio: 1 / 1;
+  box-shadow: 0 12px 24px rgba(0, 0, 0, 0.35);
+}
+
+.cover-gallery-item img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.cover-gallery-empty {
+  text-align: center;
+  color: rgba(255, 255, 255, 0.7);
+  margin-top: 24px;
+  font-size: 0.95rem;
+}
+
+body.light-mode .cover-gallery-item {
+  border-color: rgba(0, 0, 0, 0.12);
+  background: rgba(255, 255, 255, 0.8);
+}
+
+@media (max-width: 600px) {
+  .cover-gallery-grid {
+    grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  }
 }
 
 .smart-playlist-name {

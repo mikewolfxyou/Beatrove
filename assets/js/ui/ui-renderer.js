@@ -41,6 +41,9 @@ export class UIRenderer {
       lastAvailableInitials: new Set(),
       elementsMap: new Map() // Maps letter -> DOM element
     };
+
+    this.coverGalleryModalInitialized = false;
+    this.coverGalleryEscapeHandler = null;
   }
 
   render() {
@@ -695,6 +698,9 @@ export class UIRenderer {
   createCoverArtElement(track) {
     const coverArtContainer = document.createElement('div');
     coverArtContainer.className = 'track-cover-art';
+    coverArtContainer.setAttribute('role', 'button');
+    coverArtContainer.setAttribute('tabindex', '0');
+    coverArtContainer.setAttribute('aria-label', 'Open cover art gallery');
 
     const coverArtImg = document.createElement('img');
     coverArtImg.className = 'cover-art-image';
@@ -719,6 +725,27 @@ export class UIRenderer {
       coverArtImg.src = this.createPlaceholderDataUrl();
       coverArtImg.classList.add('placeholder');
     };
+
+    const handleClick = (event) => {
+      event.preventDefault();
+      this.openCoverGalleryModal(track);
+    };
+
+    const handleKeydown = (event) => {
+      if (event.key === 'Enter' || event.key === ' ') {
+        event.preventDefault();
+        this.openCoverGalleryModal(track);
+      }
+    };
+
+    coverArtContainer.addEventListener('click', handleClick);
+    coverArtContainer.addEventListener('keydown', handleKeydown);
+    coverArtContainer.setAttribute('data-has-listeners', 'true');
+    if (!coverArtContainer._eventListeners) {
+      coverArtContainer._eventListeners = [];
+    }
+    coverArtContainer._eventListeners.push({event: 'click', handler: handleClick});
+    coverArtContainer._eventListeners.push({event: 'keydown', handler: handleKeydown});
 
     coverArtContainer.appendChild(coverArtImg);
     return coverArtContainer;
@@ -853,8 +880,13 @@ export class UIRenderer {
 
   // === Cover Art Methods ===
   resolveCoverArtPath(track) {
+    const candidates = this.generateCoverArtCandidates(track);
+    return candidates.length > 0 ? candidates[0] : null;
+  }
+
+  generateCoverArtCandidates(track) {
     if (!this.appState.data.coverArtSettings.audioFolderPath) {
-      return null;
+      return [];
     }
 
     const artworkDir = this.appState.data.coverArtSettings.artworkDirectory;
@@ -865,25 +897,161 @@ export class UIRenderer {
     const cleanSimplifiedName = simplifiedName.replace(/[<>:"/\\|?*]/g, '_');
 
     // Try full filename format: Artist - Title - Key - BPM.extension (legacy format)
-    const trackFilename = track.filename || track.display;
+    const trackFilename = track.filename || track.display || '';
     const fullFilename = trackFilename.replace(/\.[^/.]+$/, ''); // Remove extension
 
     // Generate possible cover art paths in priority order
-    const possiblePaths = [
-      // New simplified format (preferred)
+    return [
       `${basePath}/${artworkDir}/${cleanSimplifiedName}.jpg`,
       `${basePath}/${artworkDir}/${cleanSimplifiedName}.jpeg`,
       `${basePath}/${artworkDir}/${cleanSimplifiedName}.png`,
       `${basePath}/${artworkDir}/${cleanSimplifiedName}.webp`,
-      // Legacy full filename format (backward compatibility)
       `${basePath}/${artworkDir}/${fullFilename}.jpg`,
       `${basePath}/${artworkDir}/${fullFilename}.jpeg`,
       `${basePath}/${artworkDir}/${fullFilename}.png`,
       `${basePath}/${artworkDir}/${fullFilename}.webp`
     ];
+  }
 
-    // For now, return the first possible path (we'll check if it exists during loading)
-    return possiblePaths[0];
+  getCoverGallerySources(track) {
+    const sources = [];
+    const seen = new Set();
+    const addSource = (value) => {
+      if (!value || seen.has(value)) {
+        return;
+      }
+      seen.add(value);
+      sources.push(value);
+    };
+
+    if (track?.vinyl?.coverImages && Array.isArray(track.vinyl.coverImages)) {
+      track.vinyl.coverImages.forEach(addSource);
+    }
+
+    if (track?.coverImages && Array.isArray(track.coverImages)) {
+      track.coverImages.forEach(addSource);
+    }
+
+    if (track?.coverImageUrls && Array.isArray(track.coverImageUrls)) {
+      track.coverImageUrls.forEach(addSource);
+    }
+
+    if (track?.cover_image_urls && Array.isArray(track.cover_image_urls)) {
+      track.cover_image_urls.forEach(addSource);
+    }
+
+    if (track?.coverImageUrl) {
+      addSource(track.coverImageUrl);
+    }
+
+    const candidates = this.generateCoverArtCandidates(track);
+    candidates.forEach(addSource);
+
+    return sources;
+  }
+
+  openCoverGalleryModal(track) {
+    if (!track) {
+      return;
+    }
+
+    const modal = document.getElementById('cover-gallery-modal');
+    const grid = document.getElementById('cover-gallery-grid');
+    const emptyState = document.getElementById('cover-gallery-empty');
+    const titleEl = document.getElementById('cover-gallery-title');
+
+    if (!modal || !grid) {
+      return;
+    }
+
+    const sources = this.getCoverGallerySources(track);
+    grid.innerHTML = '';
+
+    if (titleEl) {
+      const artist = track.artist || 'Unknown Artist';
+      const title = track.title || 'Unknown Track';
+      titleEl.textContent = `${artist} - ${title}`;
+    }
+
+    if (sources.length === 0) {
+      grid.style.display = 'none';
+      if (emptyState) {
+        emptyState.style.display = 'block';
+      }
+    } else {
+      grid.style.display = 'grid';
+      if (emptyState) {
+        emptyState.style.display = 'none';
+      }
+
+      sources.forEach((source, index) => {
+        const item = document.createElement('div');
+        item.className = 'cover-gallery-item';
+        item.setAttribute('role', 'listitem');
+
+        const img = document.createElement('img');
+        img.alt = `Cover ${index + 1} for ${track.artist || 'Unknown Artist'} - ${track.title || 'Untitled Track'}`;
+        this.loadCoverArt(source, img);
+
+        item.appendChild(img);
+        grid.appendChild(item);
+      });
+    }
+
+    this.ensureCoverGalleryModalListeners(modal);
+    modal.classList.remove('hidden');
+    modal.style.display = 'flex';
+    modal.setAttribute('aria-hidden', 'false');
+  }
+
+  ensureCoverGalleryModalListeners(modal) {
+    if (this.coverGalleryModalInitialized) {
+      return;
+    }
+
+    const closeBtn = document.getElementById('close-cover-gallery-modal');
+    const closeHandler = () => this.closeCoverGalleryModal();
+
+    if (closeBtn) {
+      closeBtn.addEventListener('click', closeHandler);
+      closeBtn.setAttribute('data-has-listeners', 'true');
+      if (!closeBtn._eventListeners) {
+        closeBtn._eventListeners = [];
+      }
+      closeBtn._eventListeners.push({event: 'click', handler: closeHandler});
+    }
+
+    const overlayHandler = (event) => {
+      if (event.target === modal) {
+        this.closeCoverGalleryModal();
+      }
+    };
+
+    modal.addEventListener('click', overlayHandler);
+    modal.setAttribute('data-has-listeners', 'true');
+    if (!modal._eventListeners) {
+      modal._eventListeners = [];
+    }
+    modal._eventListeners.push({event: 'click', handler: overlayHandler});
+
+    this.coverGalleryEscapeHandler = (event) => {
+      if (event.key === 'Escape') {
+        this.closeCoverGalleryModal();
+      }
+    };
+    document.addEventListener('keydown', this.coverGalleryEscapeHandler);
+
+    this.coverGalleryModalInitialized = true;
+  }
+
+  closeCoverGalleryModal() {
+    const modal = document.getElementById('cover-gallery-modal');
+    if (!modal) {
+      return;
+    }
+    modal.classList.add('hidden');
+    modal.style.display = 'none';
+    modal.setAttribute('aria-hidden', 'true');
   }
 
   async loadCoverArt(coverArtPath, imgElement) {
