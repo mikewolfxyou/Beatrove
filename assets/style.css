@@ -3773,6 +3773,13 @@ body.light-mode .duplicate-list-container {
   padding: 0 20px;
 }
 
+#vinyl-intake-container {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 0 20px 10px;
+}
+
+
 /* Main Search Card */
 .search-section-card {
   background: var(--card-bg);
@@ -4927,4 +4934,7 @@ body.light-mode .upload-dropzone {
   .compare-export-buttons .control-btn {
     min-width: 100%;
   }
+}
+.vinyl-card-hidden {
+  display: none;
 }

@@ -64,6 +64,9 @@ export class UIController {
 
     // Vinyl upload handlers
     this.setupVinylUploadHandlers();
+
+    // Vinyl intake toggle
+    this.setupVinylIntakeToggle();
   }
 
   setVinylReloadHandler(handler) {
@@ -685,11 +688,21 @@ export class UIController {
 
     const vinylConfig = CONFIG?.VINYL_MODE || {};
     if (!vinylConfig.ENABLED || !vinylConfig.API_BASE_URL) {
-      card.hidden = true;
+      card.classList.add('vinyl-card-hidden');
+      const toggleBtn = document.getElementById('vinyl-intake-toggle-btn');
+      if (toggleBtn) {
+        toggleBtn.style.display = 'none';
+      }
       return;
     }
 
-    card.hidden = false;
+    card.classList.add('vinyl-card-hidden');
+    const toggleBtn = document.getElementById('vinyl-intake-toggle-btn');
+    if (toggleBtn) {
+      toggleBtn.style.display = 'inline-flex';
+      toggleBtn.classList.toggle('active', false);
+    }
+
     const apiBaseUrl = vinylConfig.API_BASE_URL.replace(/\/$/, '');
 
     form.addEventListener('submit', (event) => {
@@ -769,6 +782,29 @@ export class UIController {
         }, 5000);
       }
     }
+  }
+
+  setupVinylIntakeToggle() {
+    const toggleBtn = document.getElementById('vinyl-intake-toggle-btn');
+    const card = document.getElementById('vinyl-upload-card');
+    if (!toggleBtn || !card) {
+      return;
+    }
+
+    const updateButtonState = () => {
+      toggleBtn.classList.toggle('active', !card.classList.contains('vinyl-card-hidden'));
+      toggleBtn.textContent = card.classList.contains('vinyl-card-hidden') ? '💿 Vinyl Intake' : '🚫 Hide Vinyl Intake';
+    };
+
+    toggleBtn.addEventListener('click', () => {
+      card.classList.toggle('vinyl-card-hidden');
+      updateButtonState();
+      if (!card.classList.contains('vinyl-card-hidden')) {
+        card.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }
+    });
+
+    updateButtonState();
   }
 
   async deleteVinylRecord(recordId, trackDisplay) {
