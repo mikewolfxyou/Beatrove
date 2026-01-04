@@ -6,4 +6,4 @@ test:
 	@npm test
 
 python-test:
-	@python -m unittest discover -s tests/python -p 'test_*.py'
+	@PYTHONWARNINGS="ignore:::fastapi.routing,ignore:::starlette._utils,ignore:::anyio._backends._asyncio" python -m unittest discover -s tests/python -p 'test_*.py'

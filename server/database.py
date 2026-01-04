@@ -4,7 +4,7 @@ import json
 import sqlite3
 from contextlib import contextmanager
 from dataclasses import dataclass, asdict
-from datetime import datetime
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Dict, Iterable, List, Optional
 
@@ -119,9 +119,10 @@ def serialize_row(row: sqlite3.Row) -> Dict[str, Any]:
 
 def insert_record(record: Dict[str, Any]) -> Dict[str, Any]:
   """Insert a new record into the database and return it."""
+  now = datetime.now(timezone.utc).isoformat()
   timestamps = {
-      'created_at': datetime.utcnow().isoformat(),
-      'updated_at': datetime.utcnow().isoformat()
+      'created_at': now,
+      'updated_at': now
   }
   payload = {**record, **timestamps}
 
@@ -146,7 +147,7 @@ def update_record(record_id: str, updates: Dict[str, Any]) -> Optional[Dict[str,
     return fetch_record(record_id)
 
   updates = {key: value for key, value in updates.items() if value is not None}
-  updates['updated_at'] = datetime.utcnow().isoformat()
+  updates['updated_at'] = datetime.now(timezone.utc).isoformat()
 
   with get_connection() as conn:
     assignments = ', '.join([f'{key} = ?' for key in updates.keys()])
