@@ -1,6 +1,6 @@
 import unittest
 
-from server.metadata_enricher import (
+from server.metadata import (
     EnrichmentStrategy,
     HeuristicEnrichmentStrategy,
     MetadataEnricher

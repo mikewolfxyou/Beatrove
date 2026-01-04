@@ -21,8 +21,8 @@ from .database import (
     insert_record,
     update_record,
 )
-from .metadata_enricher import MetadataEnricher
-from .ocr_pipeline import extract_metadata
+from .metadata import MetadataEnricher
+from .ocr import extract_metadata
 
 
 BASE_DIR = Path(__file__).resolve().parent

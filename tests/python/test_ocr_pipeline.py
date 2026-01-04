@@ -1,6 +1,6 @@
 import unittest
 
-from server import ocr_pipeline
+from server.ocr import utils
 
 
 class FakeResponse:
@@ -16,7 +16,7 @@ class FakeResponse:
 class OcrPipelineTests(unittest.TestCase):
 
   def test_normalize_metadata_from_string(self):
-    result = ocr_pipeline._normalize_metadata('Side A\nTrack 1')
+    result = utils._normalize_metadata('Side A\nTrack 1')
     self.assertEqual(result['raw_text'], 'Side A\nTrack 1')
     self.assertTrue(all(value == '' for key, value in result.items() if key != 'raw_text'))
 
@@ -26,7 +26,7 @@ class OcrPipelineTests(unittest.TestCase):
         'notes': 'Berceuse Des-dur op. 57',
         'details': {'label': 'Deutsche Grammophon', 'year': '1962'}
     }
-    result = ocr_pipeline._normalize_metadata(payload)
+    result = utils._normalize_metadata(payload)
     text = result['raw_text']
     self.assertIn('artist: Tamas Vasary', text)
     self.assertIn('label: Deutsche Grammophon', text)
@@ -45,12 +45,12 @@ class OcrPipelineTests(unittest.TestCase):
         ]
     }
     response = FakeResponse(payload)
-    self.assertEqual(ocr_pipeline._extract_response_payload(response), 'Concerto in D Minor')
+    self.assertEqual(utils._extract_response_payload(response), 'Concerto in D Minor')
 
   def test_extract_response_payload_flattens_plain_dict(self):
     payload = {'artist': 'Frederic Chopin', 'record_name': 'Polonaise op. 53'}
     response = FakeResponse(payload)
-    text = ocr_pipeline._extract_response_payload(response)
+    text = utils._extract_response_payload(response)
     self.assertIn('artist: Frederic Chopin', text)
     self.assertIn('record_name: Polonaise op. 53', text)
 
