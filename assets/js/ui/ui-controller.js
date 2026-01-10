@@ -711,7 +711,7 @@ export class UIController {
         form,
         submitBtn,
         statusEl,
-        endpoint: `${apiBaseUrl}/records`
+        endpoint: `${apiBaseUrl}/vinyls`
       });
     });
   }
@@ -827,7 +827,7 @@ export class UIController {
     }
 
     try {
-      const response = await fetch(`${apiBaseUrl}/records/${encodeURIComponent(recordId)}`, {
+      const response = await fetch(`${apiBaseUrl}/vinyls/${encodeURIComponent(recordId)}`, {
         method: 'DELETE'
       });
       if (!response.ok) {

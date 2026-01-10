@@ -88,7 +88,7 @@ export class VinylService {
       return null;
     }
 
-    const response = await fetch(`${this.apiBaseUrl}/records`, {
+    const response = await fetch(`${this.apiBaseUrl}/vinyls`, {
       headers: { 'Accept': 'application/json' }
     });
 
@@ -97,14 +97,14 @@ export class VinylService {
     }
 
     const payload = await response.json();
-    const records = Array.isArray(payload.records) ? payload.records : [];
+    const vinyls = Array.isArray(payload.vinyls) ? payload.vinyls : [];
 
     const tracks = [];
     const grouped = {};
     const seen = new Set();
 
-    records.forEach(record => {
-      const track = this.recordToTrack(record);
+    vinyls.forEach(vinyl => {
+      const track = this.recordToTrack(vinyl);
       const key = track.display.toLowerCase();
       if (seen.has(key)) {
         return;
@@ -126,25 +126,27 @@ export class VinylService {
     };
   }
 
-  recordToTrack(record) {
-    const artist = SecurityUtils.sanitizeText(record.artist || record.composer || 'Unknown Artist');
-    const title = SecurityUtils.sanitizeText(record.record_name || record.catalog_number || 'Untitled Record');
-    const composer = SecurityUtils.sanitizeText(record.composer || '');
-    const year = SecurityUtils.sanitizeText(record.year || '');
-    const label = SecurityUtils.sanitizeText(record.label || 'Vinyl');
-    const location = SecurityUtils.sanitizeText(record.location || '');
-    const catalog = SecurityUtils.sanitizeText(record.catalog_number || '');
-    const notes = SecurityUtils.sanitizeText(record.notes || '');
-    const keySignature = SecurityUtils.sanitizeText(record.key_signature || '');
-    const genre = SecurityUtils.sanitizeText(record.genre || '');
-    const recordId = SecurityUtils.sanitizeText(record.id || '');
-    const composerCode = SecurityUtils.sanitizeText(record.composer_code || '');
-    const coverUrls = Array.isArray(record.cover_image_urls) ? record.cover_image_urls : (record.cover_image_url ? [record.cover_image_url] : []);
+  recordToTrack(vinyl) {
+    const works = Array.isArray(vinyl.records) ? vinyl.records : (Array.isArray(vinyl.works) ? vinyl.works : []);
+    const primary = works[0] || vinyl;
+    const artist = SecurityUtils.sanitizeText(primary.artist || primary.composer || 'Unknown Artist');
+    const title = SecurityUtils.sanitizeText(primary.record_name || primary.catalog_number || 'Untitled Record');
+    const composer = SecurityUtils.sanitizeText(primary.composer || '');
+    const year = SecurityUtils.sanitizeText(primary.year || '');
+    const label = SecurityUtils.sanitizeText(primary.label || vinyl.label || 'Vinyl');
+    const location = SecurityUtils.sanitizeText(primary.location || '');
+    const catalog = SecurityUtils.sanitizeText(primary.catalog_number || '');
+    const notes = SecurityUtils.sanitizeText(primary.notes || '');
+    const keySignature = SecurityUtils.sanitizeText(primary.key_signature || '');
+    const genre = SecurityUtils.sanitizeText(primary.genre || '');
+    const recordId = SecurityUtils.sanitizeText(vinyl.id || '');
+    const composerCode = SecurityUtils.sanitizeText(primary.composer_code || '');
+    const coverUrls = Array.isArray(vinyl.cover_image_urls) ? vinyl.cover_image_urls : (vinyl.cover_image_url ? [vinyl.cover_image_url] : []);
     const normalizedCoverUrls = coverUrls.map(url => this.normalizeImageUrl(url));
     const coverImageUrl = normalizedCoverUrls[0] || '';
     const display = `${artist} - ${title}`;
-    const resolvedKey = keySignature || this.extractKeyFromRecord(record);
-    const resolvedGenre = genre || this.deriveGenre(record);
+    const resolvedKey = keySignature || this.extractKeyFromRecord(primary);
+    const resolvedGenre = genre || this.deriveGenre(primary);
 
     return {
       artist,
@@ -167,11 +169,12 @@ export class VinylService {
         composer,
         catalogNumber: catalog,
         notes,
-        ocr: record.raw_ocr_json || {},
+        ocr: vinyl.raw_ocr_json || {},
         coverImages: normalizedCoverUrls,
         keySignature: resolvedKey,
         composerCode,
-        recordId
+        recordId,
+        works
       }
     };
   }

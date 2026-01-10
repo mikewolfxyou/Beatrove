@@ -46,6 +46,9 @@ class LLMEnrichmentStrategy(EnrichmentStrategy):
     llm_notes = result.get('notes')
     if llm_notes and not metadata.get('notes'):
       metadata['notes'] = llm_notes
+    records = result.get('records')
+    if isinstance(records, list) and records:
+      metadata['records'] = records
 
   def _run_llm(self, metadata: Dict[str, str], ocr_payloads: List[Dict[str, str]]) -> Dict[str, str]:
     if not self.llm_client.available:
@@ -61,10 +64,22 @@ class LLMEnrichmentStrategy(EnrichmentStrategy):
     )
 
     prompt = (
-        'You are a vinyl archivist. Using the OCR transcripts below, produce structured metadata and respond ONLY with JSON '
-        'using keys {"artist":"","composer":"","record_name":"","catalog_number":"","label":"","year":"","location":"","notes":"","genre":"","key_signature":"","composer_code":""}. '
-        'Keep catalog numbers verbatim, normalize names, capture any liner-note highlights in notes, and use empty strings when unsure. '
-        'Use the manual hints when they are present but otherwise rely on the OCR content.\n\n'
+        'You are a vinyl archivist. Produce a SINGLE JSON object and nothing else. '
+        'Do not output markdown, code fences, comments, or extra text. '
+        'The JSON object must use keys {"artist":"","composer":"","record_name":"","catalog_number":"","label":"","year":"","location":"","notes":"","genre":"","key_signature":"","composer_code":""}. '
+        'If multiple distinct works or performer groups are present, include a REQUIRED "records" array with one object per work using the same keys '
+        '(artist=performer, composer=composer). Each item in "records" must be a standalone record (no nesting, no sub-records, no grouped fields). '
+        'When multiple works are present, set the top-level fields to empty strings and put ALL works only inside "records". '
+        'Treat each record as independent; do not imply relationships between records. '
+        'Only use information explicitly present in the OCR text. Do NOT guess, infer, or add details not written in OCR. '
+        'If a field is missing in OCR, use an empty string. '
+        'For titles/notes, prefer English if present; otherwise use German if present; otherwise pick one other language. '
+        'Use only ONE language per record and do not mix languages across fields for the same record. '
+        'Keep catalog numbers verbatim, normalize names, capture liner-note highlights in notes, and use empty strings when unsure. '
+        'In notes, include a concise, numbered list of works with performers and movements when available (from OCR only). '
+        'If you cannot comply, return {}.\n\n'
+        'Required JSON shape example (do not copy values; use OCR text only):\n'
+        '{"artist":"","composer":"","record_name":"","catalog_number":"","label":"","year":"","location":"","notes":"","genre":"","key_signature":"","composer_code":"","records":[{"artist":"","composer":"","record_name":"","catalog_number":"","label":"","year":"","location":"","notes":"","genre":"","key_signature":"","composer_code":""}]}\n\n'
         f'Manual Hints:\n'
         f'- Artist: {metadata.get("artist") or ""}\n'
         f'- Composer: {metadata.get("composer") or ""}\n'

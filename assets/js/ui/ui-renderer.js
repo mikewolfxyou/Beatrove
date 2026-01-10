@@ -638,6 +638,7 @@ export class UIRenderer {
     const energyLevel = this.appState.data.energyLevels[trackKey];
     const energyDisplay = energyLevel ? `${'★'.repeat(energyLevel)}${'☆'.repeat(10 - energyLevel)} (${energyLevel}/10)` : '';
 
+    const workInfo = this.formatVinylWorks(track?.vinyl?.works);
     const details = [
       { label: 'Composer', value: track.composer },
       { label: 'Composer Code', value: track.composerCode },
@@ -647,13 +648,17 @@ export class UIRenderer {
       { label: 'Length', value: track.trackTime },
       { label: 'Year', value: track.year },
       { label: 'Label', value: track.recordLabel },
-      { label: 'Energy', value: energyDisplay }
+      { label: 'Energy', value: energyDisplay },
+      { label: 'Works', value: workInfo?.summary }
     ];
 
     details.forEach(detail => {
       if (detail.value) {
         const span = SecurityUtils.createSafeElement('span',
           `${detail.label}: ${detail.value}`, 'track-details');
+        if (detail.label === 'Works' && workInfo?.full) {
+          span.title = workInfo.full;
+        }
         nameContainer.appendChild(span);
       }
     });
@@ -724,6 +729,23 @@ export class UIRenderer {
     }
 
     return trackDiv;
+  }
+
+  formatVinylWorks(works) {
+    if (!Array.isArray(works) || works.length === 0) {
+      return null;
+    }
+    const titles = works.map(work => (
+      work?.record_name || work?.catalog_number || ''
+    )).filter(Boolean);
+    if (titles.length === 0) {
+      return { summary: `(${works.length})`, full: '' };
+    }
+    const preview = titles.slice(0, 3).join(' | ');
+    if (titles.length > 3) {
+      return { summary: `${preview} +${titles.length - 3} more`, full: titles.join(' | ') };
+    }
+    return { summary: preview, full: titles.join(' | ') };
   }
 
   createCoverArtElement(track) {

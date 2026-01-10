@@ -12,6 +12,7 @@ class LLMClient:
   """Simple HTTP client for the local LLM completions endpoint."""
 
   def __init__(self):
+    self.provider = os.getenv('LLM_PROVIDER', 'http').lower()
     self.endpoint = os.getenv('LLM_ENDPOINT')
     self.model = os.getenv('LLM_MODEL', 'beatrove-local-metadata')
     self.temperature = _get_float_env('LLM_TEMPERATURE', 0.0)
@@ -19,15 +20,22 @@ class LLMClient:
     self.timeout = _get_float_env('LLM_TIMEOUT_SECONDS', 60.0)
     self.max_retries = int(os.getenv('LLM_MAX_RETRIES', '2'))
     self.max_tokens = int(os.getenv('LLM_MAX_TOKENS', '512'))
+    self.gemini_api_key = os.getenv('GEMINI_API_KEY', '')
+    self.gemini_model = os.getenv('GEMINI_LLM_MODEL', '')
 
   @property
   def available(self) -> bool:
+    if self.provider == 'gemini':
+      return bool(self.gemini_api_key and self.gemini_model)
     return bool(self.endpoint)
 
   def derive_metadata(self, prompt: str) -> Dict[str, str]:
     """Send a prompt to the LLM endpoint and parse JSON output."""
     if not self.available:
       return {}
+
+    if self.provider == 'gemini':
+      return self._derive_with_gemini(prompt)
 
     payload = {
         'model': self.model,
@@ -58,6 +66,75 @@ class LLMClient:
         return parsed
 
     return {}
+
+  def _derive_with_gemini(self, prompt: str) -> Dict[str, str]:
+    endpoint = (
+        f'https://generativelanguage.googleapis.com/v1beta/models/'
+        f'{self.gemini_model}:generateContent'
+    )
+    payload = {
+        'contents': [
+            {
+                'role': 'user',
+                'parts': [
+                    {
+                        'text': prompt
+                    }
+                ]
+            }
+        ],
+        'generationConfig': {
+            'temperature': self.temperature,
+            'maxOutputTokens': self.max_tokens,
+            'topP': self.top_p
+        }
+    }
+
+    for _ in range(self.max_retries):
+      try:
+        response = requests.post(
+            endpoint,
+            params={'key': self.gemini_api_key},
+            json=payload,
+            timeout=self.timeout
+        )
+      except requests.RequestException as exc:
+        print(f'[LLM] Gemini request failed: {exc}')
+        continue
+
+      if response.status_code >= 400:
+        print(f'[LLM] Gemini error {response.status_code}: {response.text}')
+        continue
+
+      text = self._extract_gemini_text(response)
+      if not text:
+        continue
+
+      parsed = self._parse_json_payload(text)
+      if parsed:
+        return parsed
+
+    return {}
+
+  def _extract_gemini_text(self, response: requests.Response) -> str:
+    try:
+      data = response.json()
+    except ValueError:
+      return response.text.strip()
+
+    if isinstance(data, dict):
+      candidates = data.get('candidates')
+      if isinstance(candidates, list) and candidates:
+        content = candidates[0].get('content') or {}
+        parts = content.get('parts')
+        if isinstance(parts, list):
+          texts = []
+          for part in parts:
+            if isinstance(part, dict) and isinstance(part.get('text'), str):
+              texts.append(part['text'])
+          if texts:
+            return '\n'.join(texts).strip()
+    return response.text.strip()
 
   def _extract_text(self, response: requests.Response) -> str:
     try:

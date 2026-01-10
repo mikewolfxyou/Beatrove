@@ -3,7 +3,7 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Dict, List
 
-from .providers import CommandOCRProvider, HTTPOCRProvider, OCRProvider
+from .providers import CommandOCRProvider, GeminiOCRProvider, HTTPOCRProvider, OCRProvider
 
 
 def extract_metadata(image_path: Path) -> Dict[str, str]:
@@ -18,4 +18,4 @@ def extract_metadata(image_path: Path) -> Dict[str, str]:
 
 
 def _get_providers() -> List[OCRProvider]:
-  return [HTTPOCRProvider(), CommandOCRProvider()]
+  return [GeminiOCRProvider(), HTTPOCRProvider(), CommandOCRProvider()]
